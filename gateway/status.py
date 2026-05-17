@@ -477,7 +477,7 @@ def is_gateway_runtime_lock_active(lock_path: Optional[Path] = None) -> bool:
 
 
 def write_pid_file() -> None:
-    """Write the current process PID and metadata to the gateway PID file.
+    """Write the current process PID to the gateway PID file.
 
     Uses atomic O_CREAT | O_EXCL creation so that concurrent --replace
     invocations race: exactly one process wins and the rest get
@@ -485,7 +485,10 @@ def write_pid_file() -> None:
     """
     path = _get_pid_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    record = json.dumps(_build_pid_record())
+    # Hermes Desktop v0.14.0 still parses this file with int(raw), so keep the
+    # PID file in the legacy numeric format. Rich metadata remains available in
+    # gateway.lock and gateway_state.json.
+    record = str(os.getpid())
     try:
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
@@ -561,7 +564,7 @@ def remove_pid_file() -> None:
     """
     try:
         path = _get_pid_path()
-        record = _read_json_file(path)
+        record = _read_pid_record(path)
         if record is not None:
             try:
                 file_pid = int(record["pid"])
